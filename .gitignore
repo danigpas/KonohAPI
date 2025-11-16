@@ -1,0 +1,16 @@
+# Virtualenv
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Env files
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# DB / runtime
+*.sqlite3
+*.log
