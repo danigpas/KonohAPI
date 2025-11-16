@@ -3,14 +3,25 @@
 venv/
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
 
 # Env files
 .env
+.env.local
+.env.*.local
 
 # IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # DB / runtime
 *.sqlite3
 *.log
+
+# Alembic (solo ignorar pycache, las migraciones van a versionarse)
+alembic/__pycache__/

@@ -31,4 +31,4 @@ class Character(SQLModel, table=True):
     jutsus: List[Jutsu] = Relationship(back_populates="users", link_model=CharacterJutsuLink)
     biography: Optional[str] = None
     image_url: Optional[str] = None
-    created_at: datetime = Field(default_factory = lambda : datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory = lambda : datetime.now(timezone.utc).replace(tzinfo=None))
