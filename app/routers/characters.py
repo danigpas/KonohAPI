@@ -1,5 +1,5 @@
 from fastapi import APIRouter,status, Depends, HTTPException
-from sqlalchemy import select
+from sqlmodel import select
 from ..models.schemas import CharacterCreate, CharacterRead
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +24,28 @@ async def list_all_characters(session: AsyncSession = Depends(get_session)) -> L
     # Convertir objetos ORM a esquemas Pydantic
     return [CharacterRead.model_validate(char) for char in characters]
 
+
+@router.get('/{character_id}', response_model=CharacterRead, status_code= status.HTTP_200_OK)
+async def get_character_by_id(character_id : int, session : AsyncSession = Depends(get_session)) -> CharacterRead :
+    """
+    Recupera un personaje en base a su id
+
+    Returns:
+        CharacterRead
+    """
+    # 1. Construir y ejecutar la consulta SELECT con WHERE
+    query = select(Character).where(Character.id == character_id)
+    result = await session.execute(query)
+
+    # 2. Obtener un resultado o None
+    character = result.scalar_one_or_none()
+
+    # 3. Manejo del 404
+    if not character:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Error, usuario no encontrado con el id : {character_id}')
+    
+    # 4. Convertir la respuesta a Pydantic y retornarla
+    return CharacterRead.model_validate(character)
 
 
 @router.post('',response_model=CharacterRead,status_code=status.HTTP_201_CREATED)
