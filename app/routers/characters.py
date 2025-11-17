@@ -82,3 +82,26 @@ async def create_character(character_data : CharacterCreate, session : AsyncSess
     # 5. Devolver el personaje creado
     return CharacterRead.model_validate(new_character)
 
+
+
+@router.delete('/{character_id}', status_code= status.HTTP_204_NO_CONTENT)
+async def delete_character_by_id(character_id : int, session : AsyncSession = Depends(get_session)) :
+    """
+    Recupera un personaje en base a su id y lo elimina de la BD.
+    """
+    # 1. Construir y ejecutar la consulta SELECT con WHERE
+    query = select(Character).where(Character.id == character_id)
+    result = await session.execute(query)
+
+    # 2. Obtener un resultado o None
+    character_to_delete = result.scalar_one_or_none()
+
+    # 3. Manejo del 404
+    if not character_to_delete:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Error, usuario no encontrado con el id : {character_id}')
+    
+    # 4. Una vez que tenemos el personaje, lo eliminamos de la BD
+    await session.delete(character_to_delete)
+    await session.commit()
+
+    
