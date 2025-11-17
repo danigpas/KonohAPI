@@ -32,8 +32,10 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     2. Te da la sesión.
     3. Cuando terminas, cierra la sesión.
     """
-    async with async_session() as session:
+    async with async_session() as session: # Al usar una clausula with nos aseguramos que la session se maneja correctamente y libera la memoria al finalizar su ejecucion
         try:
             yield session  # ← proporciona la sesión al endpoint
-        finally:
-            await session.close()  # ← cuando termina, cierra la sesión
+        except Exception:
+            await session.rollback() # Si hay un error se deshacen los cambios
+            raise #Se relanza la excepcion para que FastAPI la maneje
+        
