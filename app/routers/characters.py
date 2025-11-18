@@ -1,5 +1,7 @@
 from fastapi import APIRouter,status, Depends, HTTPException
 from sqlmodel import select
+
+from ..utils.db_utilities import search_model_by_id
 from ..models.schemas import CharacterCreate, CharacterRead, CharacterUpdate
 from typing import Dict, List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,16 +35,18 @@ async def get_character_by_id(character_id : int, session : AsyncSession = Depen
     Returns:
         CharacterRead
     """
-    # 1. Construir y ejecutar la consulta SELECT con WHERE
-    query = select(Character).where(Character.id == character_id)
-    result = await session.execute(query)
+    # # 1. Construir y ejecutar la consulta SELECT con WHERE
+    # query = select(Character).where(Character.id == character_id)
+    # result = await session.execute(query)
 
-    # 2. Obtener un resultado o None
-    character = result.scalar_one_or_none()
+    # # 2. Obtener un resultado o None
+    # character = result.scalar_one_or_none()
 
-    # 3. Manejo del 404
-    if not character:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Error, usuario no encontrado con el id : {character_id}')
+    # # 3. Manejo del 404
+    # if not character:
+    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Error, usuario no encontrado con el id : {character_id}')
+
+    character = await search_model_by_id(Character,character_id,session)
     
     # 4. Convertir la respuesta a Pydantic y retornarla
     return CharacterRead.model_validate(character)
@@ -131,7 +135,7 @@ async def update_character(character_id : int ,character_data : CharacterCreate,
         setattr(character_to_update,key,value)
 
     # 5. Agregar la sesion
-    session.add(character_to_update)
+    session.add(character_to_update) 
 
     # 6. Guardar en la BD (commit)
     await session.commit()
