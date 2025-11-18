@@ -20,3 +20,11 @@ class CharacterRead(BaseModel):
     clan_id: Optional[int]
     biography : Optional[str]
     image_url : Optional[str]
+
+class CharacterUpdate(BaseModel):
+    name: Optional[str] = None
+    full_name: Optional[str] = None
+    rank: Optional[str] = None
+    clan_id: Optional[int] = None
+    biography: Optional[str] = None
+    image_url: Optional[str] = None

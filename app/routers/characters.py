@@ -1,7 +1,7 @@
 from fastapi import APIRouter,status, Depends, HTTPException
 from sqlmodel import select
-from ..models.schemas import CharacterCreate, CharacterRead
-from typing import List
+from ..models.schemas import CharacterCreate, CharacterRead, CharacterUpdate
+from typing import Dict, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db.session import get_session
 from ..models.db_models import Character
@@ -126,7 +126,43 @@ async def update_character(character_id : int ,character_data : CharacterCreate,
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Error, usuario no encontrado con el id : {character_id}')
 
     # 4. Recorremos los datos obtenidos de la BD y los modificados por los pasados por el usuario
-    for key,value in character_data:
+    update_character_data = character_data.model_dump()
+    for key,value in update_character_data.items():
+        setattr(character_to_update,key,value)
+
+    # 5. Agregar la sesion
+    session.add(character_to_update)
+
+    # 6. Guardar en la BD (commit)
+    await session.commit()
+
+    # 7. Refrescar el objeto para obtener el ID generado por la BD
+    await session.refresh(character_to_update)
+
+    # 8. Devolver el personaje creado
+    return CharacterRead.model_validate(character_to_update)
+
+
+@router.patch('/{character_id}',response_model=CharacterRead,status_code=status.HTTP_200_OK)
+async def update_character_value(character_id : int ,character_new_value : CharacterUpdate, session : AsyncSession = Depends(get_session)) -> CharacterRead:
+    """
+    Busca un personaje en la BD y actualiza solamente el dato pasado por el cliente.
+    """
+    # Buscamos el personaje con la id pasada por el usuario
+
+    query =select(Character).where(Character.id == character_id)
+    result = await session.execute(query)
+
+    # 2. Obtener un resultado o None
+    character_to_update = result.scalar_one_or_none()
+
+    # 3. Manejo del 404
+    if not character_to_update:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Error, usuario no encontrado con el id : {character_id}')
+
+    # 4. Recorremos los datos obtenidos de la BD y los modificados por los pasados por el usuario
+    clean_character_data = character_new_value.model_dump(exclude_unset=True)
+    for key,value in clean_character_data.items():
         setattr(character_to_update,key,value)
 
     # 5. Agregar la sesion
