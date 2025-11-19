@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Type
+from typing import Generic, Type, TypeVar
 from sqlmodel import SQLModel, select
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,20 +8,27 @@ from typing import List, Any
 from ..db.session import get_session
 from ..utils.db_utilities import search_model_by_id, update_model
 
-class CRUDConfig:
+
+# 1. Definimos nuestros marcadores de posición de tipo (TypeVars)
+DbModelType = TypeVar("DbModelType", bound=SQLModel)
+CreateSchemaType = TypeVar("CreateSchemaType", bound=SQLModel)
+ReadSchemaType = TypeVar("ReadSchemaType", bound=SQLModel)
+UpdateSchemaType = TypeVar("UpdateSchemaType", bound=SQLModel)
+
+# 2. Hacemos que CRUDConfig sea una clase genérica
+class CRUDConfig(Generic[DbModelType, CreateSchemaType, ReadSchemaType, UpdateSchemaType]):
     """
-    Clase de configuración para la factoría de routers CRUD.
-    Contiene todos los modelos y esquemas necesarios.
+    Clase de configuración genérica para la factoría de routers CRUD.
     """
-    db_model: Type[SQLModel]
-    create_schema: Type[SQLModel]
-    read_schema: Type[SQLModel]
-    update_schema: Type[SQLModel]
+    db_model: Type[DbModelType]
+    create_schema: Type[CreateSchemaType]
+    read_schema: Type[ReadSchemaType]
+    update_schema: Type[UpdateSchemaType]
     path_prefix: str
     tag: str
 
-
-async def create_crud_router(config: CRUDConfig) -> APIRouter:
+    
+async def create_crud_router(config: CRUDConfig[DbModelType, CreateSchemaType, ReadSchemaType, UpdateSchemaType]) -> APIRouter:
     """
     Factoría que crea y devuelve un APIRouter con los 5 endpoints CRUD básicos.
     """
@@ -29,29 +36,42 @@ async def create_crud_router(config: CRUDConfig) -> APIRouter:
 
     # --- Endpoint 1: GET ALL ---
     async def get_all_items(*, db: AsyncSession = Depends(get_session)):
-        # La lógica es la misma que ya tienes, pero usando los modelos de la config
+        
         result = await db.execute(select(config.db_model))
         result = result.scalars().all()
-        yield [config.read_schema.model_validate(char) for char in result]
+        return [config.read_schema.model_validate(char) for char in result]
+
     # --- Endpoint 2: GET BY ID ---
     async def get_item_by_id(*, db: AsyncSession = Depends(get_session), item_id: int):
         # Usas tu utilidad genérica
-        character = await search_model_by_id(config.db_model, item_id, db)
+        item = await search_model_by_id(config.db_model, item_id, db)
+        return item
 
     # --- Endpoint 3: CREATE ---
-    async def create_item(*, db: AsyncSession = Depends(get_session), new_item_data : Type[config.create_schema], item_id : int):
+    async def create_item(*, db: AsyncSession = Depends(get_session), new_item_data : CreateSchemaType, item_id : int):
         return 'hola'
     
     # --- Endpoint 4 : UPDATE ---
-    async def update_item(*, db : AsyncSession = Depends(get_session), new_item_data : Type[config.create_schema], item_id : int):
+    async def update_item(*, db : AsyncSession = Depends(get_session), new_item_data : UpdateSchemaType, item_id : int):
         # Convertimos el personaje a dict para recorrerlo en el update elemento a elemento
-        clean_character_data = config.update_schema.model_dump()
+        clean_character_data = new_item_data.model_dump()
 
         # Y con el dict limpio lo actualizamos en la BD
         character_to_update = await update_model(DBModel=config.db_model,new_db_model_data=clean_character_data,element_id=item_id,db=db)
 
         # 8. Devolver el personaje creado
-        yield config.read_schema.model_validate(character_to_update)
+        return config.read_schema.model_validate(character_to_update)
+
+    # --- Endpoint 5 : PATCH ---
+    async def update_part_of_item(*, db : AsyncSession = Depends(get_session), new_item_data : UpdateSchemaType, item_id : int):
+        # Convertimos el personaje a dict para recorrerlo en el update elemento a elemento
+        clean_character_data = new_item_data.model_dump(exclude_unset=True)
+
+        # Y con el dict limpio lo actualizamos en la BD
+        character_to_update = await update_model(DBModel=config.db_model,new_db_model_data=clean_character_data,element_id=item_id,db=db)
+
+        # 8. Devolver el personaje creado
+        return config.read_schema.model_validate(character_to_update)
 
     # ... y así sucesivamente para POST, PUT, y PATCH
     # La lógica interna será una copia de la que ya tienes en characters.py,
