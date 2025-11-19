@@ -1,7 +1,7 @@
 from fastapi import APIRouter,status, Depends, HTTPException
 from sqlmodel import select
 
-from ..utils.db_utilities import search_model_by_id
+from ..utils.db_utilities import search_model_by_id, update_model
 from ..models.schemas import CharacterCreate, CharacterRead, CharacterUpdate
 from typing import Dict, List
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,16 +35,6 @@ async def get_character_by_id(character_id : int, session : AsyncSession = Depen
     Returns:
         CharacterRead
     """
-    # # 1. Construir y ejecutar la consulta SELECT con WHERE
-    # query = select(Character).where(Character.id == character_id)
-    # result = await session.execute(query)
-
-    # # 2. Obtener un resultado o None
-    # character = result.scalar_one_or_none()
-
-    # # 3. Manejo del 404
-    # if not character:
-    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Error, usuario no encontrado con el id : {character_id}')
 
     character = await search_model_by_id(Character,character_id,session)
     
@@ -93,18 +83,10 @@ async def delete_character_by_id(character_id : int, session : AsyncSession = De
     """
     Recupera un personaje en base a su id y lo elimina de la BD.
     """
-    # 1. Construir y ejecutar la consulta SELECT con WHERE
-    query = select(Character).where(Character.id == character_id)
-    result = await session.execute(query)
 
-    # 2. Obtener un resultado o None
-    character_to_delete = result.scalar_one_or_none()
+    character_to_delete = await search_model_by_id(Character,character_id,session)
 
-    # 3. Manejo del 404
-    if not character_to_delete:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Error, usuario no encontrado con el id : {character_id}')
-    
-    # 4. Una vez que tenemos el personaje, lo eliminamos de la BD
+    #  Una vez que tenemos el personaje, lo eliminamos de la BD
     await session.delete(character_to_delete)
     await session.commit()
 
@@ -117,31 +99,11 @@ async def update_character(character_id : int ,character_data : CharacterCreate,
     Pasos:
 
     """
-    # Buscamos el personaje con la id pasada por el usuario
+    # Convertimos el personaje a dict para recorrerlo en el update elemento a elemento
+    clean_character_data = character_data.model_dump()
 
-    query =select(Character).where(Character.id == character_id)
-    result = await session.execute(query)
-
-    # 2. Obtener un resultado o None
-    character_to_update = result.scalar_one_or_none()
-
-    # 3. Manejo del 404
-    if not character_to_update:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Error, usuario no encontrado con el id : {character_id}')
-
-    # 4. Recorremos los datos obtenidos de la BD y los modificados por los pasados por el usuario
-    update_character_data = character_data.model_dump()
-    for key,value in update_character_data.items():
-        setattr(character_to_update,key,value)
-
-    # 5. Agregar la sesion
-    session.add(character_to_update) 
-
-    # 6. Guardar en la BD (commit)
-    await session.commit()
-
-    # 7. Refrescar el objeto para obtener el ID generado por la BD
-    await session.refresh(character_to_update)
+    # Y con el dict limpio lo actualizamos en la BD
+    character_to_update = await update_model(DBModel=Character,new_db_model_data=clean_character_data,element_id=character_id,db=session)
 
     # 8. Devolver el personaje creado
     return CharacterRead.model_validate(character_to_update)
@@ -152,31 +114,12 @@ async def update_character_value(character_id : int ,character_new_value : Chara
     """
     Busca un personaje en la BD y actualiza solamente el dato pasado por el cliente.
     """
-    # Buscamos el personaje con la id pasada por el usuario
 
-    query =select(Character).where(Character.id == character_id)
-    result = await session.execute(query)
-
-    # 2. Obtener un resultado o None
-    character_to_update = result.scalar_one_or_none()
-
-    # 3. Manejo del 404
-    if not character_to_update:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Error, usuario no encontrado con el id : {character_id}')
-
-    # 4. Recorremos los datos obtenidos de la BD y los modificados por los pasados por el usuario
+    # Al ser un patch primero limpiamos los campos que no nos ha pasado el usuario, para no sobreescribirlos a None
     clean_character_data = character_new_value.model_dump(exclude_unset=True)
-    for key,value in clean_character_data.items():
-        setattr(character_to_update,key,value)
-
-    # 5. Agregar la sesion
-    session.add(character_to_update)
-
-    # 6. Guardar en la BD (commit)
-    await session.commit()
-
-    # 7. Refrescar el objeto para obtener el ID generado por la BD
-    await session.refresh(character_to_update)
-
-    # 8. Devolver el personaje creado
+    
+    # Y con el dict limpio lo actualizamos en la BD
+    character_to_update = await update_model(DBModel=Character,new_db_model_data=clean_character_data,element_id=character_id,db=session)
+    
+    # 8. Devolvemos el personaje creado
     return CharacterRead.model_validate(character_to_update)
