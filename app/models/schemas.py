@@ -1,7 +1,7 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, List
+from sqlmodel import SQLModel
+from typing import Optional
 
-class CharacterCreate(BaseModel):
+class CharacterCreate(SQLModel):
     name: str
     full_name: Optional[str] = None
     external_id: Optional[str] = None
@@ -10,9 +10,8 @@ class CharacterCreate(BaseModel):
     biography : Optional[str] = None
     image_url : Optional[str] = None
 
-class CharacterRead(BaseModel):
+class CharacterRead(SQLModel):
     """Personaje tal como se devuelve de la BD"""
-    model_config = ConfigDict(from_attributes=True)  # ← IMPORTANTE
     id: int
     name: str
     full_name: Optional[str]
@@ -21,7 +20,7 @@ class CharacterRead(BaseModel):
     biography : Optional[str]
     image_url : Optional[str]
 
-class CharacterUpdate(BaseModel):
+class CharacterUpdate(SQLModel):
     name: Optional[str] = None
     full_name: Optional[str] = None
     rank: Optional[str] = None

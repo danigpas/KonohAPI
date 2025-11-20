@@ -16,6 +16,7 @@ ReadSchemaType = TypeVar("ReadSchemaType", bound=SQLModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=SQLModel)
 
 # 2. Hacemos que CRUDConfig sea una clase genérica
+@dataclass
 class CRUDConfig(Generic[DbModelType, CreateSchemaType, ReadSchemaType, UpdateSchemaType]):
     """
     Clase de configuración genérica para la factoría de routers CRUD.
