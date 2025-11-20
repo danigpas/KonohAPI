@@ -27,3 +27,34 @@ class CharacterUpdate(SQLModel):
     clan_id: Optional[int] = None
     biography: Optional[str] = None
     image_url: Optional[str] = None
+
+# Clan Schemas
+class ClanCreate(SQLModel):
+    name: str
+    description: Optional[str] = None
+
+class ClanRead(SQLModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+
+class ClanUpdate(SQLModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+# Jutsu Schemas
+class JutsuCreate(SQLModel):
+    name: str
+    type: Optional[str] = None
+    rank: Optional[str] = None
+
+class JutsuRead(SQLModel):
+    id: int
+    name: str
+    type: Optional[str] = None
+    rank: Optional[str] = None
+
+class JutsuUpdate(SQLModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    rank: Optional[str] = None

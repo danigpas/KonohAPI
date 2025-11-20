@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Generic, Type, TypeVar
 from sqlmodel import SQLModel, select
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Any
 
@@ -56,12 +56,12 @@ def create_crud_router(config: CRUDConfig[DbModelType, CreateSchemaType, ReadSch
 
     # --- Endpoint 3: CREATE (POST) ---
     @router.post('',response_model=ReadSchemaType,status_code=status.HTTP_201_CREATED)
-    async def create_item(*, db: AsyncSession = Depends(get_session), item_in : CreateSchemaType):
+    async def create_item(*, db: AsyncSession = Depends(get_session), item_in : CreateSchemaType = Body(...)):
         """
         Crea un nuevo elemento
         """
         #Convertimos nuestro objeto en un modelo de BD
-        db_item = config.db_model.model_validate(item_in)   
+        db_item = config.db_model.model_validate(item_in.model_dump())   
         
         #Lo registramos en la BD
         db.add(db_item)
