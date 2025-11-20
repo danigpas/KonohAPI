@@ -61,7 +61,8 @@ def create_crud_router(config: CRUDConfig[DbModelType, CreateSchemaType, ReadSch
         Crea un nuevo elemento
         """
         #Convertimos nuestro objeto en un modelo de BD
-        db_item = config.db_model.model_validate(item_in.model_dump())   
+        item_data = item_in.model_dump()
+        db_item = config.db_model(**item_data)   
         
         #Lo registramos en la BD
         db.add(db_item)
