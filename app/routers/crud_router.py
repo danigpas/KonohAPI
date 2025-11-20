@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Generic, Type, TypeVar
 from sqlmodel import SQLModel, select
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Any
 
@@ -28,31 +28,49 @@ class CRUDConfig(Generic[DbModelType, CreateSchemaType, ReadSchemaType, UpdateSc
     tag: str
 
     
-async def create_crud_router(config: CRUDConfig[DbModelType, CreateSchemaType, ReadSchemaType, UpdateSchemaType]) -> APIRouter:
+def create_crud_router(config: CRUDConfig[DbModelType, CreateSchemaType, ReadSchemaType, UpdateSchemaType]) -> APIRouter:
     """
     Factoría que crea y devuelve un APIRouter con los 5 endpoints CRUD básicos.
     """
     router = APIRouter(prefix=config.path_prefix, tags=[config.tag])
 
     # --- Endpoint 1: GET ALL ---
+    @router.get('', response_model=List[ReadSchemaType], status_code=status.HTTP_200_OK)
     async def get_all_items(*, db: AsyncSession = Depends(get_session)):
-        
+        """
+        Obtiene todos los elementos del modelo especificado
+        """
         result = await db.execute(select(config.db_model))
-        result = result.scalars().all()
-        return [config.read_schema.model_validate(char) for char in result]
+        return result.scalars().all()
+        
 
     # --- Endpoint 2: GET BY ID ---
+    @router.get('/{item_id}', response_model=ReadSchemaType, status_code= status.HTTP_200_OK)
     async def get_item_by_id(*, db: AsyncSession = Depends(get_session), item_id: int):
-        # Usas tu utilidad genérica
+        """
+        Obtiene un elemento mediante su id
+        """
         item = await search_model_by_id(config.db_model, item_id, db)
         return item
 
-    # --- Endpoint 3: CREATE ---
-    async def create_item(*, db: AsyncSession = Depends(get_session), new_item_data : CreateSchemaType, item_id : int):
-        return 'hola'
+    # --- Endpoint 3: CREATE (POST) ---
+    @router.post('',response_model=ReadSchemaType,status_code=status.HTTP_201_CREATED)
+    async def create_item(*, db: AsyncSession = Depends(get_session), item_in : CreateSchemaType):
+        """
+        Crea un nuevo elemento
+        """
+        #Convertimos nuestro objeto en un modelo de BD
+        db_item = config.db_model.model_validate(item_in)   
+        
+        #Lo registramos en la BD
+        db.add(db_item)
+        await db.commit()
+        await db.refresh(db_item)
+        return db_item
     
-    # --- Endpoint 4 : UPDATE ---
-    async def update_item(*, db : AsyncSession = Depends(get_session), new_item_data : UpdateSchemaType, item_id : int):
+    # --- Endpoint 4 : UPDATE (PUT)---
+    @router.put('/{item_id}',response_model=ReadSchemaType,status_code=status.HTTP_200_OK)
+    async def update_item_put(*, db : AsyncSession = Depends(get_session), new_item_data : CreateSchemaType, item_id : int):
         # Convertimos el personaje a dict para recorrerlo en el update elemento a elemento
         clean_character_data = new_item_data.model_dump()
 
@@ -60,10 +78,11 @@ async def create_crud_router(config: CRUDConfig[DbModelType, CreateSchemaType, R
         character_to_update = await update_model(DBModel=config.db_model,new_db_model_data=clean_character_data,element_id=item_id,db=db)
 
         # 8. Devolver el personaje creado
-        return config.read_schema.model_validate(character_to_update)
+        return character_to_update
 
-    # --- Endpoint 5 : PATCH ---
-    async def update_part_of_item(*, db : AsyncSession = Depends(get_session), new_item_data : UpdateSchemaType, item_id : int):
+    # --- Endpoint 5 : PARTIAL UPDATE (PATCH) ---
+    @router.patch('/{item_id}',response_model=ReadSchemaType,status_code=status.HTTP_200_OK)
+    async def update_item_patch(*, db : AsyncSession = Depends(get_session), new_item_data : UpdateSchemaType, item_id : int):
         # Convertimos el personaje a dict para recorrerlo en el update elemento a elemento
         clean_character_data = new_item_data.model_dump(exclude_unset=True)
 
@@ -71,11 +90,14 @@ async def create_crud_router(config: CRUDConfig[DbModelType, CreateSchemaType, R
         character_to_update = await update_model(DBModel=config.db_model,new_db_model_data=clean_character_data,element_id=item_id,db=db)
 
         # 8. Devolver el personaje creado
-        return config.read_schema.model_validate(character_to_update)
+        return character_to_update
 
-    # ... y así sucesivamente para POST, PUT, y PATCH
-    # La lógica interna será una copia de la que ya tienes en characters.py,
-    # pero reemplazando 'models.Character' por 'config.db_model',
-    # 'schemas.CharacterCreate' por 'config.create_schema', etc.
-
+    # --- Endpoint 6 : DELETE ---
+    @router.delete('/{item_id}', status_code= status.HTTP_204_NO_CONTENT)
+    async def delete_item(*, db : AsyncSession = Depends(get_session), item_id : int):
+        to_delete = await search_model_by_id(DBModel=config.db_model,element_id=item_id,db=db)
+        #  Una vez que tenemos el personaje, lo eliminamos de la BD
+        await db.delete(to_delete)
+        await db.commit()
+    
     return router
