@@ -8,7 +8,6 @@ from typing import List, Any
 from ..db.session import get_session
 from ..utils.db_utilities import search_model_by_id, update_model
 
-
 # 1. Definimos nuestros marcadores de posición de tipo (TypeVars)
 DbModelType = TypeVar("DbModelType", bound=SQLModel)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=SQLModel)
@@ -54,15 +53,16 @@ def create_crud_router(config: CRUDConfig[DbModelType, CreateSchemaType, ReadSch
         item = await search_model_by_id(config.db_model, item_id, db)
         return item
 
+    create_schema = config.create_schema
     # --- Endpoint 3: CREATE (POST) ---
-    @router.post('',response_model=ReadSchemaType,status_code=status.HTTP_201_CREATED)
-    async def create_item(*, db: AsyncSession = Depends(get_session), item_in : CreateSchemaType = Body(...)):
+    @router.post('',response_model=ReadSchemaType,status_code=status.HTTP_201_CREATED)                      #Como create schema se rellena en tiempo de ejecucion, fastapi lo valida pero pylance no, asi que ignoramos el error de pylance en este caso
+    async def create_item(*, db: AsyncSession = Depends(get_session), item_in : create_schema = Body(...)): # type: ignore
         """
         Crea un nuevo elemento
         """
         #Convertimos nuestro objeto en un modelo de BD
-        item_data = item_in.model_dump()
-        db_item = config.db_model(**item_data)   
+        
+        db_item = config.db_model.model_validate(item_in,from_attributes=True)   
         
         #Lo registramos en la BD
         db.add(db_item)
@@ -70,9 +70,10 @@ def create_crud_router(config: CRUDConfig[DbModelType, CreateSchemaType, ReadSch
         await db.refresh(db_item)
         return db_item
     
+    update_schema = config.update_schema
     # --- Endpoint 4 : UPDATE (PUT)---
     @router.put('/{item_id}',response_model=ReadSchemaType,status_code=status.HTTP_200_OK)
-    async def update_item_put(*, db : AsyncSession = Depends(get_session), new_item_data : CreateSchemaType, item_id : int):
+    async def update_item_put(*, db : AsyncSession = Depends(get_session), new_item_data : update_schema = Body(...), item_id : int): # type: ignore
         # Convertimos el personaje a dict para recorrerlo en el update elemento a elemento
         clean_character_data = new_item_data.model_dump()
 
@@ -84,7 +85,7 @@ def create_crud_router(config: CRUDConfig[DbModelType, CreateSchemaType, ReadSch
 
     # --- Endpoint 5 : PARTIAL UPDATE (PATCH) ---
     @router.patch('/{item_id}',response_model=ReadSchemaType,status_code=status.HTTP_200_OK)
-    async def update_item_patch(*, db : AsyncSession = Depends(get_session), new_item_data : UpdateSchemaType, item_id : int):
+    async def update_item_patch(*, db : AsyncSession = Depends(get_session), new_item_data : update_schema = Body(...), item_id : int): # type: ignore
         # Convertimos el personaje a dict para recorrerlo en el update elemento a elemento
         clean_character_data = new_item_data.model_dump(exclude_unset=True)
 
