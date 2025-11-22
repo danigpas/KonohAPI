@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel
-from typing import Optional
+from typing import Optional, List
 
 class CharacterCreate(SQLModel):
     name: str
@@ -11,7 +11,7 @@ class CharacterCreate(SQLModel):
     image_url : Optional[str] = None
 
 class CharacterRead(SQLModel):
-    """Personaje tal como se devuelve de la BD"""
+    """Personaje tal como se devuelve de la BD""" 
     id: int
     name: str
     full_name: Optional[str]
@@ -37,10 +37,14 @@ class ClanRead(SQLModel):
     id: int
     name: str
     description: Optional[str] = None
+    members: List[CharacterRead] = []
 
 class ClanUpdate(SQLModel):
     name: Optional[str] = None
     description: Optional[str] = None
+
+class ClanReadWithMembers(ClanRead):
+    members: List[CharacterRead] = [] 
 
 # Jutsu Schemas
 class JutsuCreate(SQLModel):
