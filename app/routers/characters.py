@@ -22,3 +22,4 @@ character_config = CRUDConfig(
 #Definimos el router de characters
 router = create_crud_router(config=character_config)
 
+#TODO : Implementar un endpoint para aprender jutsus
